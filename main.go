@@ -18,8 +18,10 @@ type User struct {
 }
 
 type Segment struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID          int               `json:"id"`
+	Name        string            `json:"name" pg:",unique"`
+	Description string            `json:"discription"`
+	Users       map[int]time.Time `json:"users"`
 }
 
 type addSegmentRequest struct {
@@ -103,7 +105,7 @@ func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 		http.Error(w, "Неверные данные", http.StatusBadRequest)
 		return
 	}
-
+	var currentSegment Segment
 	var currentUser User
 	err = db.Model(&currentUser).Where("id=?", requestData.UserID).Select()
 	if err != nil {
@@ -131,11 +133,26 @@ func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 			continue
 		}
 
-		if _, ok := currentUser.Segments[segment]; ok && requestData.Override {
-			currentUser.Segments[segment] = time.Now().Add(time.Duration(ttl) * time.Hour)
-		} else if _, ok := currentUser.Segments[segment]; !ok {
-			currentUser.Segments[segment] = time.Now().Add(time.Duration(ttl) * time.Hour)
+		if _, ok := currentUser.Segments[segment]; (ok && requestData.Override) || !ok {
+			current_ttl := time.Now().Add(time.Duration(ttl) * time.Hour)
+			currentUser.Segments[segment] = current_ttl
+			err = db.Model(&currentSegment).Where("name=?", segment).Select()
+			if err != nil {
+				http.Error(w, "Ошибка добавления пользователя в сегмент", http.StatusBadRequest)
+				return
+			}
+
+			if currentSegment.Users == nil {
+				currentSegment.Users = make(map[int]time.Time)
+			}
+			currentSegment.Users[currentUser.ID] = current_ttl
+			_, err = db.Model(&currentSegment).Where("name=?", segment).Update()
+			if err != nil {
+				http.Error(w, "Ошибка добавления пользователя в сегмент", http.StatusBadRequest)
+				return
+			}
 		}
+
 	}
 
 	// Update user in DB
@@ -144,6 +161,7 @@ func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 		http.Error(w, "Ошибка добавления сегментов пользователю", http.StatusBadRequest)
 		return
 	}
+
 	// response
 	if len(notExistedSegments) == 0 {
 		err = json.NewEncoder(w).Encode("All segments added to user")
@@ -188,8 +206,14 @@ func createSegment(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 
 	_, err = db.Model(&newSegment).Insert()
 	if err != nil {
-		http.Error(w, "Ошибка создания пользователя", http.StatusInternalServerError)
-		return
+		pgErr, ok := err.(pg.Error)
+		if ok && pgErr.IntegrityViolation() {
+			http.Error(w, "Сегмент с таким именем уже существует", http.StatusInternalServerError)
+			return
+		} else {
+			http.Error(w, "Ошибка создания сегмента", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusCreated)
