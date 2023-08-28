@@ -11,12 +11,6 @@ import (
 	"time"
 )
 
-//func init() {
-//	// Register many to many model so ORM can better recognize m2m relation.
-//	// This should be done before dependant models are used.
-//	orm.RegisterTable((*UserSegments)(nil))
-//}
-
 type User struct {
 	ID       int                  `json:"id"`
 	Name     string               `json:"name"`
@@ -40,13 +34,13 @@ var db *pg.DB
 func main() {
 	initDB()
 	router := httprouter.New()
-	router.GET("/users", listUsers)
+	router.GET("/users", getUsers)
 	router.POST("/users", createUser)
 	router.GET("/users/:id", getUser)
 	router.PUT("/users/:id", updateUser)
 	router.DELETE("/users/:id", deleteUser)
 
-	router.GET("/segments", listSegments)
+	router.GET("/segments", getSegments)
 	router.POST("/segments", createSegment)
 	router.PUT("/segments/:slug", updateSegment)
 	router.DELETE("/segments/:slug", deleteSegment)
@@ -116,7 +110,6 @@ func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 		http.Error(w, "Пользователь не найден", http.StatusNotFound)
 		return
 	}
-
 	// map init
 	if currentUser.Segments == nil {
 		currentUser.Segments = make(map[string]time.Time)
@@ -127,8 +120,17 @@ func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 		delete(currentUser.Segments, segment)
 	}
 
+	// Creating var that storage wrong segments from request
+	var notExistedSegments []string
+
 	// Add new segments with TTL
 	for segment, ttl := range requestData.SegmentsToAdd {
+		err = db.Model(&Segment{}).Where("name=?", segment).Select()
+		if err != nil {
+			notExistedSegments = append(notExistedSegments, segment)
+			continue
+		}
+
 		if _, ok := currentUser.Segments[segment]; ok && requestData.Override {
 			currentUser.Segments[segment] = time.Now().Add(time.Duration(ttl) * time.Hour)
 		} else if _, ok := currentUser.Segments[segment]; !ok {
@@ -142,10 +144,25 @@ func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 		http.Error(w, "Ошибка добавления сегментов пользователю", http.StatusBadRequest)
 		return
 	}
+	// response
+	if len(notExistedSegments) == 0 {
+		err = json.NewEncoder(w).Encode("All segments added to user")
+		if err != nil {
+			http.Error(w, "Json encode error", http.StatusInternalServerError)
+			log.Fatal("Json encode error", err)
+		}
+	} else {
+		message := "Some slugs doesn't exist: "
+		err = json.NewEncoder(w).Encode(map[string][]string{message: notExistedSegments})
+		if err != nil {
+			http.Error(w, "Json encode error", http.StatusInternalServerError)
+			log.Fatal("Json encode error", err)
+		}
+	}
 
 }
 
-func listSegments(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+func getSegments(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	var segments []Segment
 	err := db.Model(&segments).Select()
 	if err != nil {
@@ -219,7 +236,7 @@ func deleteSegment(w http.ResponseWriter, _ *http.Request, routerParams httprout
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func listUsers(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+func getUsers(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	var users []User
 	err := db.Model(&users).Select()
 	if err != nil {
