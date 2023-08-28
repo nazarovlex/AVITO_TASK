@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"github.com/go-pg/pg/v10"
-	"github.com/go-pg/pg/v10/orm"
 	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
@@ -11,95 +10,8 @@ import (
 	"time"
 )
 
-type User struct {
-	ID       int                  `json:"id"`
-	Name     string               `json:"name"`
-	Segments map[string]time.Time `json:"segments"`
-}
-
-type Segment struct {
-	ID          int               `json:"id"`
-	Name        string            `json:"name" pg:",unique"`
-	Description string            `json:"description"`
-	Users       map[int]time.Time `json:"users"`
-}
-
-type addSegmentRequest struct {
-	UserID          int            `json:"user_id"`
-	SegmentsToAdd   map[string]int `json:"segments_to_add"`
-	SegmentToDelete []string       `json:"segment_to_delete"`
-	Override        bool           `json:"override"`
-}
-
-var db *pg.DB
-
-func main() {
-	initDB()
-	router := httprouter.New()
-	router.GET("/users", getUsers)
-	router.POST("/users", createUser)
-	router.GET("/users/:id", getUser)
-	router.PUT("/users/:id", updateUser)
-	router.DELETE("/users/:id", deleteUser)
-
-	router.GET("/segments", getSegments)
-	router.POST("/segments", createSegment)
-	router.PUT("/segments/:slug", updateSegment)
-	router.DELETE("/segments/:slug", deleteSegment)
-
-	router.POST("/user_segments", addSegmentsToUser)
-
-	log.Println("Сервер запущен на порту :8000")
-	err := http.ListenAndServe(":8000", router)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-}
-
-func initDB() {
-	opts := &pg.Options{
-		User:     "postgres",
-		Password: "postgres",
-		Addr:     "localhost:5432",
-		Database: "test_api",
-	}
-
-	db = pg.Connect(opts)
-	if db == nil {
-		log.Fatal("Ошибка подключения к БД")
-	}
-	log.Println("Успешное подключение к БД")
-
-	err := createSchema()
-	if err != nil {
-		log.Fatal("Ошибка создания схемы БД: ", err)
-	} else {
-		log.Println("Схема БД создана")
-	}
-}
-
-func createSchema() error {
-	models := []interface{}{
-		(*User)(nil),
-		(*Segment)(nil),
-	}
-
-	for _, model := range models {
-		err := db.Model(model).CreateTable(&orm.CreateTableOptions{
-			IfNotExists: true,
-			Temp:        false,
-		})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-
-}
-
 func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	var requestData addSegmentRequest
+	var requestData AddSegmentRequest
 	err := json.NewDecoder(r.Body).Decode(&requestData)
 	if err != nil {
 		http.Error(w, "Неверные данные", http.StatusBadRequest)
