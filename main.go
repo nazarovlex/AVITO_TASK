@@ -20,7 +20,7 @@ type User struct {
 type Segment struct {
 	ID          int               `json:"id"`
 	Name        string            `json:"name" pg:",unique"`
-	Description string            `json:"discription"`
+	Description string            `json:"description"`
 	Users       map[int]time.Time `json:"users"`
 }
 
@@ -244,16 +244,35 @@ func updateSegment(w http.ResponseWriter, r *http.Request, routerParams httprout
 }
 
 func deleteSegment(w http.ResponseWriter, _ *http.Request, routerParams httprouter.Params) {
-
+	var segment Segment
 	slug := routerParams.ByName("slug")
 
-	segment := &Segment{}
-	res, err := db.Model(segment).Where("name = ?", slug).Delete()
+	err := db.Model(&segment).Where("name = ?", slug).Select()
 	if err != nil {
-		http.Error(w, "Ошибка удаления пользователя", http.StatusInternalServerError)
-		return
-	} else if res.RowsAffected() == 0 {
 		http.Error(w, "Сегмент с таким slug отсутствует", http.StatusInternalServerError)
+		return
+	}
+	var currentUser User
+	for userId := range segment.Users {
+		err = db.Model(&currentUser).Where("id=?", userId).Select()
+		if err != nil {
+			http.Error(w, "Ошибка удаления сегмента", http.StatusInternalServerError)
+			return
+		}
+		// delete segment from users table
+		delete(currentUser.Segments, slug)
+
+		// Update user in DB
+		_, err = db.Model(&currentUser).WherePK().Update()
+		if err != nil {
+			http.Error(w, "Ошибка удаления сегмента у пользователя", http.StatusBadRequest)
+			return
+		}
+	}
+
+	_, err = db.Model(&segment).Where("name = ?", slug).Delete()
+	if err != nil {
+		http.Error(w, "Ошибка удаления сегмента", http.StatusInternalServerError)
 		return
 	}
 
@@ -337,16 +356,37 @@ func updateUser(w http.ResponseWriter, r *http.Request, routerParams httprouter.
 }
 
 func deleteUser(w http.ResponseWriter, _ *http.Request, routerParams httprouter.Params) {
+	userID, _ := strconv.Atoi(routerParams.ByName("id"))
 
-	userID := routerParams.ByName("id")
+	var user User
+	err := db.Model(&user).Where("id = ?", userID).Select()
+	if err != nil {
+		http.Error(w, "Пользователь с таким id отсутствует", http.StatusInternalServerError)
+		return
+	}
 
-	user := &User{}
-	res, err := db.Model(user).Where("id = ?", userID).Delete()
+	var currentSegment Segment
+	for segmentName := range user.Segments {
+		err = db.Model(&currentSegment).Where("name=?", segmentName).Select()
+		if err != nil {
+			http.Error(w, "Ошибка удаления сегмента", http.StatusInternalServerError)
+			return
+		}
+
+		// delete user from segments table
+		delete(currentSegment.Users, userID)
+
+		// Update user in DB
+		_, err = db.Model(&currentSegment).Where("name=?", segmentName).Update()
+		if err != nil {
+			http.Error(w, "Ошибка удаления пользователя у сегмента", http.StatusBadRequest)
+			return
+		}
+	}
+
+	_, err = db.Model(&user).Where("id = ?", userID).Delete()
 	if err != nil {
 		http.Error(w, "Ошибка удаления пользователя", http.StatusInternalServerError)
-		return
-	} else if res.RowsAffected() == 0 {
-		http.Error(w, "Пользователь с таким id отсутствует", http.StatusInternalServerError)
 		return
 	}
 
