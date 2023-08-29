@@ -14,10 +14,12 @@ type User struct {
 }
 
 type Segment struct {
-	ID          int               `json:"id"`
-	Name        string            `json:"name" pg:",unique"`
-	Description string            `json:"description"`
-	Users       map[int]time.Time `json:"users"`
+	ID           int               `json:"id"`
+	Name         string            `json:"name" pg:",unique"`
+	Description  string            `json:"description"`
+	Users        map[int]time.Time `json:"users"`
+	UsersPercent int               `pg:"-" json:"users_percent"`
+	TTL          int               `pg:"-" json:"ttl"`
 }
 
 type UserSegmentHistory struct {
