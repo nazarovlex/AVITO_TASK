@@ -146,6 +146,44 @@ func createSegment(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 		return
 	}
 
+	// check auto adding user percent
+	if newSegment.UsersPercent > 0 {
+		var userCount int
+		userCount, err = db.Model(&User{}).Count()
+		if err != nil {
+			http.Error(w, "Slug creating error", http.StatusInternalServerError)
+			return
+		}
+
+		userToAdd := int(float64(userCount) / 100.00 * float64(newSegment.UsersPercent))
+
+		var users []User
+		err = db.Model(&users).OrderExpr("RANDOM()").Limit(userToAdd).Select()
+		if err != nil {
+			http.Error(w, "DB query error", http.StatusInternalServerError)
+			return
+		}
+
+		expirationTime := time.Now().Add(time.Duration(newSegment.TTL) * time.Hour)
+
+		for _, user := range users {
+			if user.Segments == nil {
+				user.Segments = make(map[string]time.Time)
+			}
+			if newSegment.Users == nil {
+				newSegment.Users = make(map[int]time.Time)
+			}
+			user.Segments[newSegment.Name] = expirationTime
+			_, err = db.Model(&user).WherePK().Update()
+			if err != nil {
+				http.Error(w, "DB query error", http.StatusInternalServerError)
+				return
+			}
+			newSegment.Users[user.ID] = expirationTime
+		}
+
+	}
+
 	_, err = db.Model(&newSegment).Insert()
 	if err != nil {
 		pgErr, ok := err.(pg.Error)
