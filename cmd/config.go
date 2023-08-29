@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"github.com/go-pg/pg/v10"
 	"github.com/go-pg/pg/v10/orm"
 	"log"
@@ -21,11 +20,24 @@ type Segment struct {
 	Users       map[int]time.Time `json:"users"`
 }
 
+type UserSegmentHistory struct {
+	ID        int       `pg:"id,pk" json:"id"`
+	UserID    int       `pg:"user_id" json:"user_id"`
+	Slug      string    `pg:"segment" json:"slug"`
+	Operation string    `pg:"operation" json:"operation"`
+	Timestamp time.Time `pg:"timestamp" json:"timestamp"`
+}
+
 type AddSegmentRequest struct {
 	UserID          int            `json:"user_id"`
 	SegmentsToAdd   map[string]int `json:"segments_to_add"`
 	SegmentToDelete []string       `json:"segment_to_delete"`
 	Override        bool           `json:"override"`
+}
+
+type GetReportRequest struct {
+	Year  int `json:"year"`
+	Month int `json:"month"`
 }
 
 var db *pg.DB
@@ -39,20 +51,7 @@ func initDB() {
 	}
 
 	db = pg.Connect(opts)
-	if db == nil {
-		log.Fatal("Ошибка подключения к БД")
-	}
-	defer func(db *pg.DB) {
-		err := db.Close()
-		if err != nil {
 
-		}
-	}(db)
-
-	ctx := context.Background()
-	if err := db.Ping(ctx); err != nil {
-		log.Fatal("DB connection error:", err)
-	}
 	log.Println("Successful connection to DB")
 
 	err := createSchema()
@@ -67,6 +66,7 @@ func createSchema() error {
 	models := []interface{}{
 		(*User)(nil),
 		(*Segment)(nil),
+		(*UserSegmentHistory)(nil),
 	}
 
 	for _, model := range models {
