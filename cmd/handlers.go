@@ -14,14 +14,14 @@ func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 	var requestData AddSegmentRequest
 	err := json.NewDecoder(r.Body).Decode(&requestData)
 	if err != nil {
-		http.Error(w, "Неверные данные", http.StatusBadRequest)
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		return
 	}
 	var currentSegment Segment
 	var currentUser User
 	err = db.Model(&currentUser).Where("id=?", requestData.UserID).Select()
 	if err != nil {
-		http.Error(w, "Пользователь не найден", http.StatusNotFound)
+		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
 	// map init
@@ -50,7 +50,7 @@ func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 			currentUser.Segments[segment] = current_ttl
 			err = db.Model(&currentSegment).Where("name=?", segment).Select()
 			if err != nil {
-				http.Error(w, "Ошибка добавления пользователя в сегмент", http.StatusBadRequest)
+				http.Error(w, "DB query error", http.StatusInternalServerError)
 				return
 			}
 
@@ -60,7 +60,7 @@ func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 			currentSegment.Users[currentUser.ID] = current_ttl
 			_, err = db.Model(&currentSegment).Where("name=?", segment).Update()
 			if err != nil {
-				http.Error(w, "Ошибка добавления пользователя в сегмент", http.StatusBadRequest)
+				http.Error(w, "Error adding user to slug.", http.StatusInternalServerError)
 				return
 			}
 		}
@@ -70,13 +70,13 @@ func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 	// Update user in DB
 	_, err = db.Model(&currentUser).WherePK().Update()
 	if err != nil {
-		http.Error(w, "Ошибка добавления сегментов пользователю", http.StatusBadRequest)
+		http.Error(w, "Error adding slugs to user.", http.StatusInternalServerError)
 		return
 	}
 
 	// response
 	if len(notExistedSegments) == 0 {
-		err = json.NewEncoder(w).Encode("All segments added to user")
+		err = json.NewEncoder(w).Encode("All slugs added to user")
 		if err != nil {
 			http.Error(w, "Json encode error", http.StatusInternalServerError)
 			log.Fatal("Json encode error", err)
@@ -96,7 +96,7 @@ func getSegments(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	var segments []Segment
 	err := db.Model(&segments).Select()
 	if err != nil {
-		http.Error(w, "Ошибка запроса к БД", http.StatusInternalServerError)
+		http.Error(w, "DB query error", http.StatusInternalServerError)
 		return
 	}
 
@@ -112,7 +112,7 @@ func createSegment(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 	var newSegment Segment
 	err := json.NewDecoder(r.Body).Decode(&newSegment)
 	if err != nil {
-		http.Error(w, "Неверные данные", http.StatusBadRequest)
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		return
 	}
 
@@ -120,10 +120,10 @@ func createSegment(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 	if err != nil {
 		pgErr, ok := err.(pg.Error)
 		if ok && pgErr.IntegrityViolation() {
-			http.Error(w, "Сегмент с таким именем уже существует", http.StatusInternalServerError)
+			http.Error(w, "Slug with this name already exist", http.StatusConflict)
 			return
 		} else {
-			http.Error(w, "Ошибка создания сегмента", http.StatusInternalServerError)
+			http.Error(w, "Slug creating error", http.StatusInternalServerError)
 			return
 		}
 	}
@@ -137,7 +137,7 @@ func updateSegment(w http.ResponseWriter, r *http.Request, routerParams httprout
 	var updatedSegment Segment
 	err := json.NewDecoder(r.Body).Decode(&updatedSegment)
 	if err != nil {
-		http.Error(w, "Неверные данные", http.StatusBadRequest)
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		return
 	}
 
@@ -145,10 +145,10 @@ func updateSegment(w http.ResponseWriter, r *http.Request, routerParams httprout
 	res, err := db.Model(&updatedSegment).Where("name = ?", slug).Update()
 
 	if err != nil {
-		http.Error(w, "Ошибка обновления сегмента", http.StatusInternalServerError)
+		http.Error(w, "Slug updating error", http.StatusInternalServerError)
 		return
 	} else if res.RowsAffected() == 0 {
-		http.Error(w, "Сегмент с таким slug отсутствует", http.StatusInternalServerError)
+		http.Error(w, "Slug not found", http.StatusNotFound)
 		return
 	}
 
@@ -161,14 +161,14 @@ func deleteSegment(w http.ResponseWriter, _ *http.Request, routerParams httprout
 
 	err := db.Model(&segment).Where("name = ?", slug).Select()
 	if err != nil {
-		http.Error(w, "Сегмент с таким slug отсутствует", http.StatusInternalServerError)
+		http.Error(w, "Slug not exist", http.StatusNotFound)
 		return
 	}
 	var currentUser User
 	for userId := range segment.Users {
 		err = db.Model(&currentUser).Where("id=?", userId).Select()
 		if err != nil {
-			http.Error(w, "Ошибка удаления сегмента", http.StatusInternalServerError)
+			http.Error(w, "DB query error", http.StatusInternalServerError)
 			return
 		}
 		// delete segment from users table
@@ -177,14 +177,14 @@ func deleteSegment(w http.ResponseWriter, _ *http.Request, routerParams httprout
 		// Update user in DB
 		_, err = db.Model(&currentUser).WherePK().Update()
 		if err != nil {
-			http.Error(w, "Ошибка удаления сегмента у пользователя", http.StatusBadRequest)
+			http.Error(w, "Deleting users slug error", http.StatusInternalServerError)
 			return
 		}
 	}
 
 	_, err = db.Model(&segment).Where("name = ?", slug).Delete()
 	if err != nil {
-		http.Error(w, "Ошибка удаления сегмента", http.StatusInternalServerError)
+		http.Error(w, "Deleting slug error", http.StatusInternalServerError)
 		return
 	}
 
@@ -195,7 +195,7 @@ func getUsers(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	var users []User
 	err := db.Model(&users).Select()
 	if err != nil {
-		http.Error(w, "Ошибка запроса к БД", http.StatusInternalServerError)
+		http.Error(w, "DB query error", http.StatusInternalServerError)
 		return
 	}
 
@@ -211,13 +211,13 @@ func createUser(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var newUser User
 	err := json.NewDecoder(r.Body).Decode(&newUser)
 	if err != nil {
-		http.Error(w, "Неверные данные", http.StatusBadRequest)
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		return
 	}
 
 	_, err = db.Model(&newUser).Insert()
 	if err != nil {
-		http.Error(w, "Ошибка создания пользователя", http.StatusInternalServerError)
+		http.Error(w, "User creating error", http.StatusInternalServerError)
 		return
 	}
 
@@ -231,7 +231,7 @@ func getUser(w http.ResponseWriter, _ *http.Request, routerParams httprouter.Par
 	user := &User{ID: -1}
 	err := db.Model(user).Where("id = ?", userID).Select()
 	if err != nil {
-		http.Error(w, "Пользователь не найден", http.StatusNotFound)
+		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
 
@@ -249,7 +249,7 @@ func updateUser(w http.ResponseWriter, r *http.Request, routerParams httprouter.
 	var updatedUser User
 	err := json.NewDecoder(r.Body).Decode(&updatedUser)
 	if err != nil {
-		http.Error(w, "Неверные данные", http.StatusBadRequest)
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		return
 	}
 
@@ -257,10 +257,10 @@ func updateUser(w http.ResponseWriter, r *http.Request, routerParams httprouter.
 	res, err := db.Model(&updatedUser).WherePK().Update()
 
 	if err != nil {
-		http.Error(w, "Ошибка обновления пользователя", http.StatusInternalServerError)
+		http.Error(w, "User updating error", http.StatusInternalServerError)
 		return
 	} else if res.RowsAffected() == 0 {
-		http.Error(w, "Пользователь с таким id отсутствует", http.StatusInternalServerError)
+		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
 
@@ -273,7 +273,7 @@ func deleteUser(w http.ResponseWriter, _ *http.Request, routerParams httprouter.
 	var user User
 	err := db.Model(&user).Where("id = ?", userID).Select()
 	if err != nil {
-		http.Error(w, "Пользователь с таким id отсутствует", http.StatusInternalServerError)
+		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
 
@@ -281,7 +281,7 @@ func deleteUser(w http.ResponseWriter, _ *http.Request, routerParams httprouter.
 	for segmentName := range user.Segments {
 		err = db.Model(&currentSegment).Where("name=?", segmentName).Select()
 		if err != nil {
-			http.Error(w, "Ошибка удаления сегмента", http.StatusInternalServerError)
+			http.Error(w, "DB query error", http.StatusInternalServerError)
 			return
 		}
 
@@ -291,14 +291,14 @@ func deleteUser(w http.ResponseWriter, _ *http.Request, routerParams httprouter.
 		// Update user in DB
 		_, err = db.Model(&currentSegment).Where("name=?", segmentName).Update()
 		if err != nil {
-			http.Error(w, "Ошибка удаления пользователя у сегмента", http.StatusBadRequest)
+			http.Error(w, "Slug users updating error", http.StatusInternalServerError)
 			return
 		}
 	}
 
 	_, err = db.Model(&user).Where("id = ?", userID).Delete()
 	if err != nil {
-		http.Error(w, "Ошибка удаления пользователя", http.StatusInternalServerError)
+		http.Error(w, "User deleting error", http.StatusInternalServerError)
 		return
 	}
 
