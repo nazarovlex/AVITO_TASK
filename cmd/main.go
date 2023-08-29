@@ -26,6 +26,10 @@ func main() {
 	// add and delete user slugs route
 	router.POST("/user_segments", addSegmentsToUser)
 
+	// reports save and download
+	router.GET("/get_report", createReport)
+	router.GET("/download_report/:filename", downloadReport)
+
 	log.Println("Server listen and serve on port :8000")
 	err := http.ListenAndServe(":8000", router)
 	if err != nil {
