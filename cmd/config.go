@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/go-pg/pg/v10"
 	"github.com/go-pg/pg/v10/orm"
 	"log"
@@ -41,13 +42,24 @@ func initDB() {
 	if db == nil {
 		log.Fatal("Ошибка подключения к БД")
 	}
-	log.Println("Успешное подключение к БД")
+	defer func(db *pg.DB) {
+		err := db.Close()
+		if err != nil {
+
+		}
+	}(db)
+
+	ctx := context.Background()
+	if err := db.Ping(ctx); err != nil {
+		log.Fatal("DB connection error:", err)
+	}
+	log.Println("Successful connection to DB")
 
 	err := createSchema()
 	if err != nil {
-		log.Fatal("Ошибка создания схемы БД: ", err)
+		log.Fatal("Create DB schemas error: ", err)
 	} else {
-		log.Println("Схема БД создана")
+		log.Println("DB schemas created")
 	}
 }
 
