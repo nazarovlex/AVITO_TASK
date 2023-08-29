@@ -1,11 +1,15 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"github.com/go-pg/pg/v10"
 	"github.com/julienschmidt/httprouter"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 )
@@ -17,6 +21,7 @@ func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		return
 	}
+
 	var currentSegment Segment
 	var currentUser User
 	err = db.Model(&currentUser).Where("id=?", requestData.UserID).Select()
@@ -24,6 +29,7 @@ func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
+
 	// map init
 	if currentUser.Segments == nil {
 		currentUser.Segments = make(map[string]time.Time)
@@ -32,6 +38,17 @@ func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 	// Delete segments
 	for _, segment := range requestData.SegmentToDelete {
 		delete(currentUser.Segments, segment)
+		history := UserSegmentHistory{
+			UserID:    requestData.UserID,
+			Slug:      segment,
+			Operation: "удаление",
+			Timestamp: time.Now(),
+		}
+		_, err = db.Model(&history).Insert()
+		if err != nil {
+			http.Error(w, "Error history saving", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Creating var that storage wrong segments from request
@@ -46,8 +63,8 @@ func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 		}
 
 		if _, ok := currentUser.Segments[segment]; (ok && requestData.Override) || !ok {
-			current_ttl := time.Now().Add(time.Duration(ttl) * time.Hour)
-			currentUser.Segments[segment] = current_ttl
+			expirationTime := time.Now().Add(time.Duration(ttl) * time.Hour)
+			currentUser.Segments[segment] = expirationTime
 			err = db.Model(&currentSegment).Where("name=?", segment).Select()
 			if err != nil {
 				http.Error(w, "DB query error", http.StatusInternalServerError)
@@ -57,12 +74,25 @@ func addSegmentsToUser(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 			if currentSegment.Users == nil {
 				currentSegment.Users = make(map[int]time.Time)
 			}
-			currentSegment.Users[currentUser.ID] = current_ttl
+			currentSegment.Users[currentUser.ID] = expirationTime
 			_, err = db.Model(&currentSegment).Where("name=?", segment).Update()
 			if err != nil {
 				http.Error(w, "Error adding user to slug.", http.StatusInternalServerError)
 				return
 			}
+
+			history := UserSegmentHistory{
+				UserID:    requestData.UserID,
+				Slug:      segment,
+				Operation: "добавление",
+				Timestamp: time.Now(),
+			}
+			_, err = db.Model(&history).Insert()
+			if err != nil {
+				http.Error(w, "Error history saving", http.StatusInternalServerError)
+				return
+			}
+
 		}
 
 	}
@@ -303,4 +333,85 @@ func deleteUser(w http.ResponseWriter, _ *http.Request, routerParams httprouter.
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func createReport(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var requestData GetReportRequest
+	err := json.NewDecoder(r.Body).Decode(&requestData)
+	if err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		return
+	}
+	var entries []UserSegmentHistory
+	err = db.Model(&entries).
+		Where("EXTRACT(year FROM timestamp) = ?", requestData.Year).
+		Where("EXTRACT(month FROM timestamp) = ?", requestData.Month).
+		Select()
+
+	if err != nil {
+		http.Error(w, "DB query error", http.StatusInternalServerError)
+		return
+	}
+	filename := fmt.Sprintf("report_%04d-%02d.csv", requestData.Year, requestData.Month)
+	filepath := "reports/" + filename
+	file, err := os.Create(filepath)
+	if err != nil {
+		http.Error(w, "Report creating error", http.StatusInternalServerError)
+		return
+	}
+	defer func(file *os.File) {
+		err = file.Close()
+		if err != nil {
+
+		}
+	}(file)
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	for _, entry := range entries {
+		err = writer.Write([]string{
+			"идентификатор пользователя " + strconv.Itoa(entry.UserID),
+			entry.Slug,
+			entry.Operation,
+			entry.Timestamp.Format("2006-01-02 15:04:05"),
+		})
+		if err != nil {
+			return
+		}
+	}
+	URL := "localhost:8000"
+	link := URL + "/download_report/" + filename
+	err = json.NewEncoder(w).Encode(map[string]string{"download_link": link})
+	if err != nil {
+		http.Error(w, "Json encode error", http.StatusInternalServerError)
+		log.Fatal("Json encode error", err)
+	}
+}
+
+func downloadReport(w http.ResponseWriter, _ *http.Request, routerParams httprouter.Params) {
+	filename := routerParams.ByName("filename")
+	filePath := "reports/" + filename
+
+	// Открываем файл для чтения
+	file, err := os.Open(filePath)
+	if err != nil {
+		http.Error(w, "File opening error", http.StatusInternalServerError)
+		return
+	}
+	defer func(file *os.File) {
+		err = file.Close()
+		if err != nil {
+
+		}
+	}(file)
+
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+
+	_, err = io.Copy(w, file)
+	if err != nil {
+		http.Error(w, "File sending error", http.StatusInternalServerError)
+		return
+	}
 }
