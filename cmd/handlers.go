@@ -8,7 +8,7 @@ import (
 	"github.com/go-pg/pg/v10"
 	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
-	"github.com/nazarovlex/AVITO_TASK/cmd/db"
+	"github.com/nazarovlex/AVITO_TASK/internal/db"
 	"io"
 	"log"
 	"net/http"
@@ -82,6 +82,25 @@ func createUser(ctx context.Context, database *db.Service) httprouter.Handle {
 		}
 
 		w.WriteHeader(http.StatusCreated)
+	}
+
+}
+
+func deleteUser(ctx context.Context, database *db.Service) httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, routerParams httprouter.Params) {
+		userId, err := uuid.Parse(routerParams.ByName("id"))
+		if err != nil {
+			http.Error(w, "UUID parse error", http.StatusInternalServerError)
+			return
+		}
+
+		err = database.DeleteUser(ctx, userId)
+		if err != nil {
+			http.Error(w, "Users deleting error", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
 	}
 
 }

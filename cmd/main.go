@@ -4,7 +4,8 @@ import (
 	"context"
 	"github.com/go-pg/pg/v10"
 	"github.com/julienschmidt/httprouter"
-	"github.com/nazarovlex/AVITO_TASK/cmd/db"
+	"github.com/nazarovlex/AVITO_TASK/internal/db"
+	"github.com/nazarovlex/AVITO_TASK/internal/runner"
 	"log"
 	"net/http"
 )
@@ -44,7 +45,7 @@ func main() {
 		log.Println("DB indexes created")
 	}
 
-	go runner(ctx, dbService)
+	go runner.Runner(ctx, dbService)
 
 	serve(ctx, dbService)
 }
@@ -56,6 +57,7 @@ func serve(ctx context.Context, dbService *db.Service) {
 	router.GET("/users", getUsers(ctx, dbService))
 	router.GET("/users/:id", getUser(ctx, dbService))
 	router.POST("/users", createUser(ctx, dbService))
+	router.DELETE("/users/:id", deleteUser(ctx, dbService))
 
 	// slugs routes
 	router.POST("/segments", createSegment(ctx, dbService))
