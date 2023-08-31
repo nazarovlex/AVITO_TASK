@@ -162,6 +162,14 @@ func (s *Sql) CreateUser(ctx context.Context, name string) error {
 	return nil
 }
 
+func (s *Sql) DeleteUser(ctx context.Context, userId uuid.UUID) error {
+	_, err := s.db.ModelContext(ctx, &Users{}).Where("user_id=?", userId).Delete()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *Sql) CreateSegment(ctx context.Context, slug string) error {
 	segment := Segments{
 		ID:   uuid.New(),

@@ -24,6 +24,7 @@ type Database interface {
 	FetchUsers(ctx context.Context) ([]UserWithSegments, error)
 	FetchUser(ctx context.Context, userId uuid.UUID) (UserWithSegments, error)
 	CreateUser(ctx context.Context, name string) error
+	DeleteUser(ctx context.Context, userId uuid.UUID) error
 
 	CreateSegment(ctx context.Context, slug string) error
 	FetchSegment(ctx context.Context, slug string) (Segments, error)
@@ -82,6 +83,14 @@ func (s *Service) FetchUser(ctx context.Context, userId uuid.UUID) (UserWithSegm
 
 func (s *Service) CreateUser(ctx context.Context, name string) error {
 	err := s.db.CreateUser(ctx, name)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Service) DeleteUser(ctx context.Context, userId uuid.UUID) error {
+	err := s.db.DeleteUser(ctx, userId)
 	if err != nil {
 		return err
 	}
