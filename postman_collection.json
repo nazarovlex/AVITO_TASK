@@ -1,0 +1,242 @@
+{
+	"info": {
+		"_postman_id": "1f0e1e26-b051-4276-a817-ee7b8ad20daa",
+		"name": "AVITO",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "27515893"
+	},
+	"item": [
+		{
+			"name": "getUsersWithSegments",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{URL}}/users",
+					"host": [
+						"{{URL}}"
+					],
+					"path": [
+						"users"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "getUserSegments",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{URL}}/users/50474f12-87f3-4263-874c-564f1cb7a032",
+					"host": [
+						"{{URL}}"
+					],
+					"path": [
+						"users",
+						"50474f12-87f3-4263-874c-564f1cb7a032"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "createUser",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"name\":\"Aleksey\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{URL}}/users",
+					"host": [
+						"{{URL}}"
+					],
+					"path": [
+						"users"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "deleteUser",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{URL}}/users/50474f12-87f3-4263-874c-564f1cb7a032",
+					"host": [
+						"{{URL}}"
+					],
+					"path": [
+						"users",
+						"50474f12-87f3-4263-874c-564f1cb7a032"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "createSegment",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"slug\":\"NEW_SEGMENT\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{URL}}/segments",
+					"host": [
+						"{{URL}}"
+					],
+					"path": [
+						"segments"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "updateSegment",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"slug\":\"NEW_NAME\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{URL}}/segments/OLD_NAME",
+					"host": [
+						"{{URL}}"
+					],
+					"path": [
+						"segments",
+						"OLD_NAME"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "deleteSegment",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{URL}}/segments/NEW_SEGMENT1",
+					"host": [
+						"{{URL}}"
+					],
+					"path": [
+						"segments",
+						"NEW_SEGMENT1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "addSegmentsToUser",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"user_id\": \"d66d3141-b546-426b-878d-5f39f203ec7b\",\n    \"segments_to_add\": {\n        \"NEW_SEGMENT\":10// slug: ttl(hours)\n    },\n    \"segment_to_delete\": [\"OLD_SEGMENT\"]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{URL}}/user_segments",
+					"host": [
+						"{{URL}}"
+					],
+					"path": [
+						"user_segments"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get_report",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"year\":2023,\n    \"month\": 8\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{URL}}/get_report",
+					"host": [
+						"{{URL}}"
+					],
+					"path": [
+						"get_report"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "URL",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
