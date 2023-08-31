@@ -15,7 +15,7 @@ func main() {
 	opts := &pg.Options{
 		User:     "postgres",
 		Password: "postgres",
-		Addr:     "web:5432",
+		Addr:     "postgres:5432",
 		Database: "test_api",
 	}
 
@@ -30,6 +30,8 @@ func main() {
 	err := dbService.CreateEnumType(ctx)
 	if err != nil {
 		log.Fatal("Creating ENUM type error: ", err)
+	} else {
+		log.Println("ENUM type created")
 	}
 
 	// create all db schemas

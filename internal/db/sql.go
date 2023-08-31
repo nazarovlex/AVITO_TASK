@@ -2,10 +2,11 @@ package db
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/go-pg/pg/v10"
 	"github.com/go-pg/pg/v10/orm"
 	"github.com/google/uuid"
-	"log"
 	"time"
 )
 
@@ -115,7 +116,7 @@ func (s *Sql) FetchUsers(ctx context.Context) ([]UserWithSegments, error) {
 
 	_, err := s.db.QueryContext(ctx, &users, query)
 	if err != nil {
-		return nil, err
+		return []UserWithSegments{}, err
 	}
 	return users, nil
 }
@@ -163,9 +164,12 @@ func (s *Sql) CreateUser(ctx context.Context, name string) error {
 }
 
 func (s *Sql) DeleteUser(ctx context.Context, userId uuid.UUID) error {
-	_, err := s.db.ModelContext(ctx, &Users{}).Where("user_id=?", userId).Delete()
+	res, err := s.db.ModelContext(ctx, &Users{}).Where("id=?", userId).Delete()
 	if err != nil {
 		return err
+	}
+	if res.RowsAffected() == 0 {
+		return errors.New(fmt.Sprintf("User with id - %s doesnt't exist", userId))
 	}
 	return nil
 }
@@ -200,9 +204,12 @@ func (s *Sql) UpdateSegment(ctx context.Context, segment Segments) error {
 }
 
 func (s *Sql) DeleteSegment(ctx context.Context, slug string) error {
-	_, err := s.db.ModelContext(ctx, &Segments{}).Where("slug=?", slug).Delete()
+	res, err := s.db.ModelContext(ctx, &Segments{}).Where("slug=?", slug).Delete()
 	if err != nil {
 		return err
+	}
+	if res.RowsAffected() == 0 {
+		return errors.New(fmt.Sprintf("Segment with slug - %s doesnt't exist", slug))
 	}
 	return nil
 }
@@ -267,7 +274,6 @@ func (s *Sql) GetHistory(ctx context.Context, year, month int) ([]GetHistory, er
 	_, err := s.db.QueryContext(ctx, &userSegmentsWithSlugs, query, year, month)
 
 	if err != nil {
-		log.Println(err)
 		return []GetHistory{}, err
 	}
 	return userSegmentsWithSlugs, nil

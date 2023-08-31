@@ -10,7 +10,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/nazarovlex/AVITO_TASK/internal/db"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -27,41 +26,38 @@ type GetReportRequest struct {
 	Month int `json:"month"`
 }
 
-func getUsers(ctx context.Context, usersRegistry *db.Service) httprouter.Handle {
+func getUsers(ctx context.Context, database *db.Service) httprouter.Handle {
 	return func(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
-		users, err := usersRegistry.FetchUsers(ctx)
+		users, err := database.FetchUsers(ctx)
 		if err != nil {
-			http.Error(w, "fetch users error", http.StatusInternalServerError)
-			log.Fatal("fetch users error ", err)
+			http.Error(w, fmt.Sprintf("fetch users error: %v", err), http.StatusInternalServerError)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		err = json.NewEncoder(w).Encode(users)
 		if err != nil {
-			http.Error(w, "Json encode error", http.StatusInternalServerError)
-			log.Fatal("Json encode error", err)
+			http.Error(w, fmt.Sprintf("Json encode error: %v", err), http.StatusInternalServerError)
 		}
 	}
 }
 
-func getUser(ctx context.Context, usersRegistry *db.Service) httprouter.Handle {
+func getUser(ctx context.Context, database *db.Service) httprouter.Handle {
 	return func(w http.ResponseWriter, _ *http.Request, routerParams httprouter.Params) {
 		userId, err := uuid.Parse(routerParams.ByName("id"))
 		if err != nil {
-			http.Error(w, "UUID parse error", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("UUID parse error: %v", err), http.StatusInternalServerError)
 			return
 		}
-		user, err := usersRegistry.FetchUser(ctx, userId)
+		user, err := database.FetchUser(ctx, userId)
 		if err != nil {
-			http.Error(w, "Users not found", http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("Users not found: %v", err), http.StatusNotFound)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		err = json.NewEncoder(w).Encode(user)
 		if err != nil {
-			http.Error(w, "Json encode error", http.StatusInternalServerError)
-			log.Fatal("Json encode error", err)
+			http.Error(w, fmt.Sprintf("Json encode error: %v", err), http.StatusInternalServerError)
 		}
 	}
 }
@@ -71,38 +67,36 @@ func createUser(ctx context.Context, database *db.Service) httprouter.Handle {
 		var newUser db.Users
 		err := json.NewDecoder(r.Body).Decode(&newUser)
 		if err != nil {
-			http.Error(w, "Invalid request data", http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("Invalid request data: %v", err), http.StatusBadRequest)
 			return
 		}
 
 		err = database.CreateUser(ctx, newUser.Name)
 		if err != nil {
-			http.Error(w, "Users creating error", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Users creating error: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		w.WriteHeader(http.StatusCreated)
 	}
-
 }
 
 func deleteUser(ctx context.Context, database *db.Service) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, routerParams httprouter.Params) {
 		userId, err := uuid.Parse(routerParams.ByName("id"))
 		if err != nil {
-			http.Error(w, "UUID parse error", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("UUID parse error: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		err = database.DeleteUser(ctx, userId)
 		if err != nil {
-			http.Error(w, "Users deleting error", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Users deleting error: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
 	}
-
 }
 
 func createSegment(ctx context.Context, database *db.Service) httprouter.Handle {
@@ -110,13 +104,13 @@ func createSegment(ctx context.Context, database *db.Service) httprouter.Handle 
 		var newSegment db.Segments
 		err := json.NewDecoder(r.Body).Decode(&newSegment)
 		if err != nil {
-			http.Error(w, "Invalid request data", http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("Invalid request data: %v", err), http.StatusBadRequest)
 			return
 		}
 
 		err = database.CreateSegment(ctx, newSegment.Slug)
 		if err != nil {
-			http.Error(w, "Segment creating error", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Segment creating error: %v", err), http.StatusInternalServerError)
 			return
 		}
 
@@ -130,11 +124,11 @@ func deleteSegment(ctx context.Context, database *db.Service) httprouter.Handle 
 
 		err := database.DeleteSegment(ctx, slug)
 		if err != nil {
-			http.Error(w, "Deleting slug error", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Deleting slug error: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -143,13 +137,13 @@ func updateSegment(ctx context.Context, database *db.Service) httprouter.Handle 
 		var updatedSegment db.Segments
 		err := json.NewDecoder(r.Body).Decode(&updatedSegment)
 		if err != nil {
-			http.Error(w, "Invalid request data", http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("Invalid request data: %v", err), http.StatusBadRequest)
 			return
 		}
 
 		err = database.UpdateSegment(ctx, updatedSegment)
 		if err != nil {
-			http.Error(w, "Slug updating error", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Slug updating error: %v", err), http.StatusInternalServerError)
 			return
 		}
 
@@ -162,14 +156,14 @@ func addSegmentsToUser(ctx context.Context, database *db.Service) httprouter.Han
 		var requestData AddSegmentRequest
 		err := json.NewDecoder(r.Body).Decode(&requestData)
 		if err != nil {
-			http.Error(w, "Invalid request data", http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("Invalid request data: %v", err), http.StatusBadRequest)
 			return
 		}
 
 		// check userId
 		userExist := database.CheckExistedUser(ctx, requestData.UserID)
 		if userExist == false {
-			http.Error(w, "Users not found", http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("Users not found: %v", err), http.StatusNotFound)
 			return
 		}
 
@@ -180,19 +174,19 @@ func addSegmentsToUser(ctx context.Context, database *db.Service) httprouter.Han
 		for _, segment := range requestData.SegmentToDelete {
 			currentSegment, err = database.FetchSegment(ctx, segment)
 			if err != nil {
-				http.Error(w, "Slug not found: "+segment, http.StatusBadRequest)
+				http.Error(w, fmt.Sprintf("Slug not found - %v error: %v", segment, err), http.StatusBadRequest)
 				return
 			}
 			err = database.DeleteUserSegments(ctx, requestData.UserID, currentSegment.ID)
 			if err != nil {
-				http.Error(w, "DB query error", http.StatusInternalServerError)
+				http.Error(w, fmt.Sprintf("DB query error: %v", err), http.StatusInternalServerError)
 				return
 			}
 
 			operation := "удаление"
 			err = database.SaveHistory(ctx, requestData.UserID, currentSegment.ID, operation, time.Now())
 			if err != nil {
-				http.Error(w, "History saving error", http.StatusInternalServerError)
+				http.Error(w, fmt.Sprintf("History saving error: %v", err), http.StatusInternalServerError)
 				return
 			}
 		}
@@ -201,26 +195,25 @@ func addSegmentsToUser(ctx context.Context, database *db.Service) httprouter.Han
 		for segment, ttl := range requestData.SegmentsToAdd {
 			currentSegment, err = database.FetchSegment(ctx, segment)
 			if err != nil {
-				http.Error(w, "Slug not found: "+segment, http.StatusBadRequest)
+				http.Error(w, fmt.Sprintf("Slug not found - %v error: %v", segment, err), http.StatusBadRequest)
 				return
 			}
 			err = database.AddUserSegments(ctx, requestData.UserID, currentSegment.ID, currentTime.Add(time.Duration(ttl)*time.Hour))
 			pgErr, ok := err.(pg.Error)
 			if ok && pgErr.IntegrityViolation() {
-				http.Error(w, "Some segment already added to user", http.StatusInternalServerError)
+				http.Error(w, fmt.Sprintf("Some segment already added to user: %v", err), http.StatusInternalServerError)
 				return
 			} else if err != nil {
-				http.Error(w, "DB query error", http.StatusInternalServerError)
+				http.Error(w, fmt.Sprintf("DB query error: %v", err), http.StatusInternalServerError)
 				return
 			}
 			operation := "добавление"
 			err = database.SaveHistory(ctx, requestData.UserID, currentSegment.ID, operation, currentTime)
 			if err != nil {
-				http.Error(w, "History saving error", http.StatusInternalServerError)
+				http.Error(w, fmt.Sprintf("History saving error: %v", err), http.StatusInternalServerError)
 				return
 			}
 		}
-
 	}
 }
 
@@ -229,27 +222,28 @@ func createReport(ctx context.Context, database *db.Service) httprouter.Handle {
 		var requestData GetReportRequest
 		err := json.NewDecoder(r.Body).Decode(&requestData)
 		if err != nil {
-			http.Error(w, "Invalid request data", http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("Invalid request data: %v", err), http.StatusBadRequest)
 			return
 		}
 
 		entries, err := database.GetHistory(ctx, requestData.Year, requestData.Month)
-		log.Println(entries)
 		if err != nil {
-			http.Error(w, "DB query error!!!!!!!!!!!!!!", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("DB query error: %v", err), http.StatusInternalServerError)
 			return
 		}
+
 		filename := fmt.Sprintf("report_%04d-%02d.csv", requestData.Year, requestData.Month)
 		filepath := "reports/" + filename
 		file, err := os.Create(filepath)
 		if err != nil {
-			http.Error(w, "Report creating error", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Report creating error: %v", err), http.StatusInternalServerError)
 			return
 		}
 		defer func(file *os.File) {
 			err = file.Close()
 			if err != nil {
-
+				http.Error(w, fmt.Sprintf("Report creating error: %v", err), http.StatusInternalServerError)
+				return
 			}
 		}(file)
 
@@ -264,15 +258,14 @@ func createReport(ctx context.Context, database *db.Service) httprouter.Handle {
 				entry.OperationAt.Format("2006-01-02 15:04:05"),
 			})
 			if err != nil {
+				http.Error(w, fmt.Sprintf("Report creating error: %v", err), http.StatusInternalServerError)
 				return
 			}
 		}
-		URL := "localhost:8000"
-		link := URL + "/download_report/" + filename
-		err = json.NewEncoder(w).Encode(map[string]string{"download_link": link})
+		link := "localhost:8000/download_report/" + filename
+		err = json.NewEncoder(w).Encode(link)
 		if err != nil {
-			http.Error(w, "Json encode error", http.StatusInternalServerError)
-			log.Fatal("Json encode error", err)
+			http.Error(w, fmt.Sprintf("Json encode error: %v", err), http.StatusInternalServerError)
 		}
 	}
 }
@@ -284,13 +277,14 @@ func downloadReport(w http.ResponseWriter, _ *http.Request, routerParams httprou
 	// Открываем файл для чтения
 	file, err := os.Open(filePath)
 	if err != nil {
-		http.Error(w, "File opening error", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("File opening error: %v", err), http.StatusInternalServerError)
 		return
 	}
 	defer func(file *os.File) {
 		err = file.Close()
 		if err != nil {
-
+			http.Error(w, fmt.Sprintf("File closing error: %v", err), http.StatusInternalServerError)
+			return
 		}
 	}(file)
 
@@ -299,7 +293,7 @@ func downloadReport(w http.ResponseWriter, _ *http.Request, routerParams httprou
 
 	_, err = io.Copy(w, file)
 	if err != nil {
-		http.Error(w, "File sending error", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("File sending error: %v", err), http.StatusInternalServerError)
 		return
 	}
 }
