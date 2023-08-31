@@ -17,27 +17,33 @@ func NewService(db Database) *Service {
 }
 
 type Database interface {
+	//  postgres config
 	CreateEnumType(ctx context.Context) error
 	CreateTable(ctx context.Context, model interface{}) error
 	CreateIndexes(ctx context.Context) error
 
+	// user
 	FetchUsers(ctx context.Context) ([]UserWithSegments, error)
 	FetchUser(ctx context.Context, userId uuid.UUID) (UserWithSegments, error)
 	CreateUser(ctx context.Context, name string) error
 	DeleteUser(ctx context.Context, userId uuid.UUID) error
 
+	// segments
 	CreateSegment(ctx context.Context, slug string) error
 	FetchSegment(ctx context.Context, slug string) (Segments, error)
 	UpdateSegment(ctx context.Context, segment Segments) error
 	DeleteSegment(ctx context.Context, slug string) error
 
+	// adding and deleting user segments
 	CheckExistedUser(ctx context.Context, userId uuid.UUID) bool
 	AddUserSegments(ctx context.Context, userId, segmentId uuid.UUID, expirationTime time.Time) error
 	DeleteUserSegments(ctx context.Context, userId, segmentId uuid.UUID) error
 
+	// history
 	SaveHistory(ctx context.Context, userId, segmentId uuid.UUID, operation string, operatedAt time.Time) error
 	GetHistory(ctx context.Context, year, month int) ([]GetHistory, error)
 
+	// runner
 	DropExpiredSegments(ctx context.Context, timeNow time.Time) error
 }
 

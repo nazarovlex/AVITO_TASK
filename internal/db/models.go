@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+// postgres models
+
 type Users struct {
 	tableName struct{}  `pg:"users"`
 	ID        uuid.UUID `pg:"id,pk,type:uuid" json:"id"`
@@ -33,6 +35,8 @@ type UserSegmentHistory struct {
 	OperationAt time.Time `pg:"operation_at"`
 }
 
+// db response models
+
 type GetHistory struct {
 	UserID      uuid.UUID `pg:"user_id,type:uuid"`
 	Operation   string    `pg:"operation"`
@@ -44,6 +48,8 @@ type UserWithSegments struct {
 	UserID       uuid.UUID `pg:"user_id,type:uuid"`
 	SegmentSlugs []string  `pg:"segment_slugs,type:text[]"`
 }
+
+// create all models if not exist
 
 func CreateSchema(ctx context.Context, dbService *Service) error {
 	models := []interface{}{
