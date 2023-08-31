@@ -249,7 +249,6 @@ func (s *Sql) SaveHistory(ctx context.Context, userId, segmentId uuid.UUID, oper
 
 func (s *Sql) GetHistory(ctx context.Context, year, month int) ([]GetHistory, error) {
 	var userSegmentsWithSlugs []GetHistory
-
 	query := `
     SELECT
         user_segment_history.user_id,
@@ -265,7 +264,6 @@ func (s *Sql) GetHistory(ctx context.Context, year, month int) ([]GetHistory, er
     AND
         EXTRACT(month FROM user_segment_history.operation_at) = ?
 `
-
 	_, err := s.db.QueryContext(ctx, &userSegmentsWithSlugs, query, year, month)
 
 	if err != nil {

@@ -26,11 +26,13 @@ func main() {
 
 	ctx := context.Background()
 
+	// create Enum type for user_segment_history.operation field
 	err := dbService.CreateEnumType(ctx)
 	if err != nil {
 		log.Fatal("Creating ENUM type error: ", err)
 	}
 
+	// create all db schemas
 	err = db.CreateSchema(ctx, dbService)
 	if err != nil {
 		log.Fatal("Create DB schemas error: ", err)
@@ -38,6 +40,7 @@ func main() {
 		log.Println("DB schemas created")
 	}
 
+	// create db indexes
 	err = dbService.CreateIndexes(ctx)
 	if err != nil {
 		log.Fatal("Create DB indexes error: ", err)
