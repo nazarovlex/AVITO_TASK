@@ -247,8 +247,8 @@ func (s *Sql) SaveHistory(ctx context.Context, userId, segmentId uuid.UUID, oper
 	return nil
 }
 
-func (s *Sql) GetHistory(ctx context.Context, year, month int) ([]UserSegmentWithSlug, error) {
-	var userSegmentsWithSlugs []UserSegmentWithSlug
+func (s *Sql) GetHistory(ctx context.Context, year, month int) ([]GetHistory, error) {
+	var userSegmentsWithSlugs []GetHistory
 
 	query := `
     SELECT
@@ -270,7 +270,7 @@ func (s *Sql) GetHistory(ctx context.Context, year, month int) ([]UserSegmentWit
 
 	if err != nil {
 		log.Println(err)
-		return []UserSegmentWithSlug{}, err
+		return []GetHistory{}, err
 	}
 	return userSegmentsWithSlugs, nil
 }

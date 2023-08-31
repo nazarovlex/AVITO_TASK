@@ -33,7 +33,7 @@ type UserSegmentHistory struct {
 	OperationAt time.Time `pg:"operation_at"`
 }
 
-type UserSegmentWithSlug struct {
+type GetHistory struct {
 	UserID      uuid.UUID `pg:"user_id,type:uuid"`
 	Operation   string    `pg:"operation"`
 	OperationAt time.Time `pg:"operation_at"`

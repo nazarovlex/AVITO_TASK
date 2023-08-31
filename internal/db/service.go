@@ -36,7 +36,7 @@ type Database interface {
 	DeleteUserSegments(ctx context.Context, userId, segmentId uuid.UUID) error
 
 	SaveHistory(ctx context.Context, userId, segmentId uuid.UUID, operation string, operatedAt time.Time) error
-	GetHistory(ctx context.Context, year, month int) ([]UserSegmentWithSlug, error)
+	GetHistory(ctx context.Context, year, month int) ([]GetHistory, error)
 
 	DropExpiredSegments(ctx context.Context, timeNow time.Time) error
 }
@@ -158,10 +158,10 @@ func (s *Service) SaveHistory(ctx context.Context, userId, segmentId uuid.UUID, 
 	return nil
 }
 
-func (s *Service) GetHistory(ctx context.Context, year, month int) ([]UserSegmentWithSlug, error) {
+func (s *Service) GetHistory(ctx context.Context, year, month int) ([]GetHistory, error) {
 	history, err := s.db.GetHistory(ctx, year, month)
 	if err != nil {
-		return []UserSegmentWithSlug{}, err
+		return []GetHistory{}, err
 	}
 	return history, nil
 }
