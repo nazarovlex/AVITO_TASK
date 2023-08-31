@@ -1,0 +1,135 @@
+openapi: 3.0.3
+info:
+  title: AVITO
+  version: 1.0.0
+
+paths:
+  /users:
+    get:
+      summary: getUsersWithSegments
+      description: getUsersWithSegments
+      operationId: getuserswithsegments
+      responses:
+        '200':
+          description: 'successful operation'
+    post:
+      summary: createUser
+      description: createUser
+      operationId: createuser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Aleksey
+            example:
+              name: Aleksey
+      responses:
+        '200':
+          description: 'successful operation'
+  /users/{id}:
+    get:
+      summary: getUserSegments
+      description: getUserSegments
+      operationId: getusersegments
+      responses:
+        '200':
+          description: 'successful operation'
+    delete:
+      summary: deleteUser
+      description: deleteUser
+      operationId: deleteuser
+      responses:
+        '200':
+          description: 'successful operation'
+  /segments:
+    post:
+      summary: createSegment
+      description: createSegment
+      operationId: createsegment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                slug:
+                  type: string
+                  example: NEW_SEGMENT
+            example:
+              slug: NEW_SEGMENT
+      responses:
+        '200':
+          description: 'successful operation'
+  /segments/OLD_NAME:
+    put:
+      summary: updateSegment
+      description: updateSegment
+      operationId: updatesegment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                slug:
+                  type: string
+                  example: NEW_NAME
+            example:
+              slug: NEW_NAME
+      responses:
+        '200':
+          description: 'successful operation'
+  /segments/NEW_SEGMENT1:
+    delete:
+      summary: deleteSegment
+      description: deleteSegment
+      operationId: deletesegment
+      responses:
+        '200':
+          description: 'successful operation'
+  /user_segments:
+    post:
+      summary: addSegmentsToUser
+      description: addSegmentsToUser
+      operationId: addsegmentstouser
+      requestBody:
+        content:
+          text/plain:
+            example: |-
+              {
+                  "user_id": "d66d3141-b546-426b-878d-5f39f203ec7b",
+                  "segments_to_add": {
+                      "NEW_SEGMENT":10// slug: ttl(hours)
+                  },
+                  "segment_to_delete": ["OLD_SEGMENT"]
+              }
+      responses:
+        '201':
+          description: 'successful operation'
+  /get_report:
+    get:
+      summary: get_report
+      description: get_report
+      operationId: getReport
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                month:
+                  type: number
+                  example: 8
+                year:
+                  type: number
+                  example: 2023
+            example:
+              month: 8
+              year: 2023
+      responses:
+        '200':
+          description: 'successful operation'
