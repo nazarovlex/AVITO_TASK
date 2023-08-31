@@ -1,33 +1,72 @@
 package main
 
 import (
+	"context"
+	"github.com/go-pg/pg/v10"
 	"github.com/julienschmidt/httprouter"
+	"github.com/nazarovlex/AVITO_TASK/cmd/db"
 	"log"
 	"net/http"
 )
 
 func main() {
-	initDB()
+	var pgConn *pg.DB
+	opts := &pg.Options{
+		User:     "postgres",
+		Password: "postgres",
+		Addr:     "web:5432",
+		Database: "test_api",
+	}
+
+	pgConn = pg.Connect(opts)
+	sql := db.NewSql(pgConn)
+	dbService := db.NewService(sql)
+	log.Println("Successful connection to DB")
+
+	ctx := context.Background()
+
+	err := dbService.CreateEnumType(ctx)
+	if err != nil {
+		log.Fatal("Creating ENUM type error: ", err)
+	}
+
+	err = db.CreateSchema(ctx, dbService)
+	if err != nil {
+		log.Fatal("Create DB schemas error: ", err)
+	} else {
+		log.Println("DB schemas created")
+	}
+
+	err = dbService.CreateIndexes(ctx)
+	if err != nil {
+		log.Fatal("Create DB indexes error: ", err)
+	} else {
+		log.Println("DB indexes created")
+	}
+
+	go runner(ctx, dbService)
+
+	serve(ctx, dbService)
+}
+
+func serve(ctx context.Context, dbService *db.Service) {
 	router := httprouter.New()
 
 	// users routes
-	router.GET("/users", getUsers)
-	router.POST("/users", createUser)
-	router.GET("/users/:id", getUser)
-	router.PUT("/users/:id", updateUser)
-	router.DELETE("/users/:id", deleteUser)
+	router.GET("/users", getUsers(ctx, dbService))
+	router.GET("/users/:id", getUser(ctx, dbService))
+	router.POST("/users", createUser(ctx, dbService))
 
 	// slugs routes
-	router.GET("/segments", getSegments)
-	router.POST("/segments", createSegment)
-	router.PUT("/segments/:slug", updateSegment)
-	router.DELETE("/segments/:slug", deleteSegment)
+	router.POST("/segments", createSegment(ctx, dbService))
+	router.DELETE("/segments/:slug", deleteSegment(ctx, dbService))
+	router.PUT("/segments/:slug", updateSegment(ctx, dbService))
 
 	// add and delete user slugs route
-	router.POST("/user_segments", addSegmentsToUser)
+	router.POST("/user_segments", addSegmentsToUser(ctx, dbService))
 
 	// reports save and download
-	router.GET("/get_report", createReport)
+	router.GET("/get_report", createReport(ctx, dbService))
 	router.GET("/download_report/:filename", downloadReport)
 
 	log.Println("Server listen and serve on port :8000")
@@ -35,5 +74,4 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 }
